@@ -1,32 +1,46 @@
-# My Repo
+# Greeting & Computation Service
 
-This repository contains a simple Python CLI utility.
+This repository contains a globally scalable, highly available API service built with FastAPI, containerized with Docker, and orchestratable via Kubernetes.
 
-## Features
-- **Greet:** Greets a user by name.
-- **Add:** Adds two numbers together.
+## Architecture
 
-## Usage
-Run the application using Python:
+The application has been upgraded from a local CLI tool to a distributed API service:
+* **Framework:** FastAPI (ASGI) for high-performance, asynchronous HTTP request handling.
+* **Core Logic:** Decoupled business logic (`core.py`) from the presentation layer (`main.py`).
+* **Containerization:** Rootless Dockerfile based on `python:3.12-slim` for secure, reproducible deployments.
+* **Orchestration:** Kubernetes manifests provided for deployment with HA (multiple replicas, resource limits, readiness/liveness probes).
 
+## Local Development
+
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run the application locally:
+   ```bash
+   uvicorn main:app --reload
+   ```
+3. Run tests:
+   ```bash
+   pytest
+   ```
+
+## Docker
+
+Build the image:
 ```bash
-python app.py --help
+docker build -t greeting-app .
 ```
 
-### Examples
-
-**Greeting a user:**
+Run the container:
 ```bash
-python app.py greet --name Alice
+docker run -p 8000:8000 greeting-app
 ```
 
-**Adding numbers:**
-```bash
-python app.py add --a 5 --b 10
-```
+## Kubernetes Deployment
 
-## Running Tests
-Run the test suite using `unittest`:
+Deploy the manifests located in the `k8s/` directory:
 ```bash
-python -m unittest test_app.py
+kubectl apply -f k8s/
 ```
+Note: Update the image registry in `k8s/deployment.yaml` and the host domain in `k8s/ingress.yaml` before deployment.

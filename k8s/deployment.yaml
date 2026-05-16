@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greeting-app
+  labels:
+    app: greeting-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: greeting-app
+  template:
+    metadata:
+      labels:
+        app: greeting-app
+    spec:
+      containers:
+      - name: greeting-app
+        image: your-docker-registry/greeting-app:latest # Replace with actual registry
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20

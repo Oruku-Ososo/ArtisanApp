@@ -1,3 +1,28 @@
+```
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+.env
+.env.local
+*.env.*
+
+# Generated HTML files
+Bibliteka/Genesis_Chapters/*.html
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
 *.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```

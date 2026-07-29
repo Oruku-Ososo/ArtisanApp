@@ -308,3 +308,160 @@ class DatabaseManager:
                     'references': json.loads(row['refs']) if row['refs'] else []
                 })
             return results
+    
+    def get_book_by_name(self, book_name: str) -> Optional[Dict]:
+        """Get book information by name."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM books WHERE name = ?', (book_name,))
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'id': result['id'],
+                    'name': result['name'],
+                    'testament': result['testament'],
+                    'chapters': result['chapters']
+                }
+            return None
+    
+    def get_chapter_verses(self, book_name: str, chapter: int, 
+                          translation: str = 'KJV') -> List[Dict]:
+        """Get all verses in a chapter."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT v.id, v.text, v.verse_number, b.name as book_name
+                FROM verses v
+                JOIN books b ON v.book_id = b.id
+                JOIN chapters c ON v.chapter_id = c.id
+                WHERE b.name = ? AND c.chapter_number = ? AND v.translation = ?
+                ORDER BY v.verse_number
+            ''', (book_name, chapter, translation))
+            
+            results = []
+            for row in cursor.fetchall():
+                results.append({
+                    'id': row['id'],
+                    'reference': f"{row['book_name']} {chapter}:{row['verse_number']}",
+                    'text': row['text'],
+                    'translation': translation,
+                    'verse_number': row['verse_number']
+                })
+            return results
+    
+    def get_book_verses(self, book_name: str, translation: str = 'KJV') -> Optional[Dict]:
+        """Get all verses in a book organized by chapter."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM books WHERE name = ?', (book_name,))
+            book_result = cursor.fetchone()
+            if not book_result:
+                return None
+            
+            cursor.execute('''
+                SELECT v.text, v.verse_number, c.chapter_number
+                FROM verses v
+                JOIN chapters c ON v.chapter_id = c.id
+                WHERE v.book_id = ? AND v.translation = ?
+                ORDER BY c.chapter_number, v.verse_number
+            ''', (book_result['id'], translation))
+            
+            chapters = {}
+            for row in cursor.fetchall():
+                ch_num = row['chapter_number']
+                if ch_num not in chapters:
+                    chapters[ch_num] = []
+                chapters[ch_num].append({
+                    'verse_number': row['verse_number'],
+                    'text': row['text']
+                })
+            
+            return {
+                'name': book_result['name'],
+                'testament': book_result['testament'],
+                'chapters': book_result['chapters'],
+                'chapters_data': chapters
+            }
+    
+    def get_embedding(self, verse_id: int) -> Optional[bytes]:
+        """Get embedding for a verse."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT embedding FROM verse_embeddings WHERE verse_id = ?', (verse_id,))
+            result = cursor.fetchone()
+            return result['embedding'] if result else None
+    
+    def create_bookmark(self, user_id: str, verse_ref: str,
+                       notes: str = None, tags: List[str] = None,
+                       is_public: bool = False) -> Dict:
+        """Create a bookmark."""
+        now = datetime.now().isoformat()
+        bookmark_id = hash(f"{user_id}{verse_ref}{now}") % 1000000
+        
+        bookmark = {
+            'id': bookmark_id,
+            'user_id': user_id,
+            'verse_ref': verse_ref,
+            'notes': notes,
+            'tags': tags or [],
+            'is_public': is_public,
+            'created_at': now,
+            'updated_at': now
+        }
+        
+        # In production, this would be stored in the database
+        # For now, store in a simple dict (would use Redis or DB table)
+        if not hasattr(self, '_bookmarks'):
+            self._bookmarks = {}
+        self._bookmarks[bookmark_id] = bookmark
+        
+        return bookmark
+    
+    def get_user_bookmarks(self, user_id: str) -> List[Dict]:
+        """Get user bookmarks."""
+        if not hasattr(self, '_bookmarks'):
+            return []
+        return [b for b in self._bookmarks.values() if b['user_id'] == user_id]
+    
+    def delete_bookmark(self, bookmark_id: int) -> bool:
+        """Delete a bookmark."""
+        if hasattr(self, '_bookmarks') and bookmark_id in self._bookmarks:
+            del self._bookmarks[bookmark_id]
+            return True
+        return False
+    
+    def get_statistics(self) -> Dict:
+        """Get database statistics."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT COUNT(*) FROM verses')
+            total_verses = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM books')
+            total_books = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(DISTINCT chapter_id) FROM chapters')
+            total_chapters = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM entities')
+            total_entities = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM relationships')
+            total_relationships = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM verse_embeddings')
+            embeddings_count = cursor.fetchone()[0]
+            
+            return {
+                'total_verses': total_verses,
+                'total_books': total_books,
+                'total_chapters': total_chapters,
+                'total_entities': total_entities,
+                'total_relationships': total_relationships,
+                'embeddings_count': embeddings_count
+            }
+
+
+# Import datetime at module level
+from datetime import datetime

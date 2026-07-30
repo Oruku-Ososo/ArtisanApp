@@ -7,13 +7,15 @@ advanced search, analytics, user features, and SOTA capabilities.
 
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.security import APIKeyHeader
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 import uvicorn
 import time
+import os
 
 from config.settings import settings
 from middleware import (
